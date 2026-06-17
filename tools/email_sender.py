@@ -2,6 +2,7 @@
 邮件发送工具 — 通过 SMTP 发送 HTML 格式的新闻摘要
 """
 import logging
+import re
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -11,12 +12,66 @@ from pathlib import Path
 
 import yaml
 import aiosmtplib
+from bs4 import BeautifulSoup, NavigableString
 
 logger = logging.getLogger(__name__)
 
 
 def _looks_like_email(value: str) -> bool:
     return bool(value and "@" in value and "." in value.split("@")[-1])
+
+
+def _replace_email_unfriendly_symbols(text: str) -> str:
+    replacements = {
+        "📰": "",
+        "🤖": "",
+        "📌": "",
+        "📊": "",
+        "🕐": "",
+        "🏢": "",
+        "💰": "",
+        "🔬": "",
+        "💻": "",
+        "🔹": "",
+        "🔸": "",
+        "▪": "",
+        "▫": "",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    # Strip remaining non-BMP symbols that many mobile mail clients render as boxes.
+    return re.sub(r"[\U00010000-\U0010ffff]", "", text)
+
+
+def _normalize_body_html(body_html: str) -> str:
+    """Convert model-produced HTML into a safe fragment for our email shell."""
+    soup = BeautifulSoup(body_html or "", "html.parser")
+
+    for tag in soup(["script", "style", "meta", "title", "head"]):
+        tag.decompose()
+
+    root = soup.body if soup.body else soup
+    fragment = BeautifulSoup("".join(str(child) for child in root.contents), "html.parser")
+
+    # The outer email template already provides the purple header. Remove model-made
+    # duplicate hero/header blocks before insertion.
+    for tag in list(fragment.find_all(True)):
+        if tag.parent is None or tag.attrs is None:
+            continue
+        style = (tag.get("style") or "").lower().replace(" ", "")
+        text = tag.get_text(" ", strip=True)
+        has_gradient = "linear-gradient" in style or ("#667eea" in style and "#764ba2" in style)
+        is_duplicate_header = "每日新闻" in text and ("aiagent" in text.lower() or "自动生成" in text or has_gradient)
+        if has_gradient and is_duplicate_header:
+            tag.decompose()
+
+    for text_node in list(fragment.find_all(string=True)):
+        if isinstance(text_node, NavigableString):
+            cleaned = _replace_email_unfriendly_symbols(str(text_node))
+            text_node.replace_with(cleaned)
+
+    normalized = "".join(str(child) for child in fragment.contents).strip()
+    return normalized or "<p>邮件正文生成失败，请重新运行任务。</p>"
 
 # 工具定义 — 用于 DeepSeek function calling
 SEND_EMAIL_SCHEMA = {
@@ -43,8 +98,8 @@ SEND_EMAIL_SCHEMA = {
                 },
                 "body_html": {
                     "type": "string",
-                    "description": "必填且不能为空。邮件的 HTML 正文内容。必须先生成完整 HTML 再调用本工具，"
-                    "包括今日概览、新闻分类标题、每条新闻的标题+摘要+来源链接+发布时间。",
+                    "description": "必填且不能为空。邮件正文 HTML 片段，不要包含 <!DOCTYPE>、html、head、body 或顶部横幅。"
+                    "必须包括今日概览、新闻分类标题、每条新闻的标题+摘要+来源链接+发布时间。",
                     "minLength": 200,
                 },
             },
@@ -119,6 +174,8 @@ async def send_email(
             "message": "发件邮箱无效，请设置 SMTP_FROM_EMAIL 或使用邮箱格式的 SMTP_USERNAME",
         }
 
+    body_html = _normalize_body_html(body_html)
+
     # 构建完整 HTML
     full_html = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -134,7 +191,7 @@ async def send_email(
                     <!-- Header -->
                     <tr>
                         <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:32px 40px;text-align:center;">
-                            <h1 style="color:#ffffff;font-size:24px;margin:0 0 8px 0;">📰 每日新闻智能摘要</h1>
+                            <h1 style="color:#ffffff;font-size:24px;margin:0 0 8px 0;">每日新闻智能摘要</h1>
                             <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:0;">
                                 由 AI Agent 自动生成 · {datetime.now(timezone.utc).strftime('%Y年%m月%d日')}
                             </p>

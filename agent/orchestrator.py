@@ -215,7 +215,8 @@ class NewsAgent:
                 "content": SYSTEM_PROMPT + f"\n\n## 当前日期\n今天是 {today} (UTC)。用户只关心最近 24-48 小时内的新闻。"
                     f"\n\n## 默认邮件收件人\n如果用户没有在提示词中指定邮箱，send_email 的 recipient 必须使用：{default_recipient}。"
                     "不要向用户追问邮箱地址；除非工具返回发送失败，否则应直接调用 send_email 完成发送。"
-                    "在调用 send_email 之前，必须先在 tool arguments 中填入非空、完整的 body_html。"
+                    "在调用 send_email 之前，必须先在 tool arguments 中填入非空、完整的 body_html HTML 片段。"
+                    "body_html 不要包含 <!DOCTYPE>、html、head、body 或顶部横幅。"
                     "绝不能先用空 body_html 试探发送。如果 send_email 返回正文为空或参数错误，"
                     "必须在下一轮修正参数并重新调用 send_email，不要结束任务，也不要只输出说明文字。"
                     f"\n\n## 可用 RSS 分类\n{cat_info}",
@@ -301,7 +302,7 @@ class NewsAgent:
                 self.messages.append({
                     "role": "user",
                     "content": "你已经达到了最大工具调用次数。请基于已获取的信息，立即生成最终新闻摘要，"
-                    "包括 HTML 邮件正文，并调用 send_email 发送。不要继续调用其他工具。",
+                    "包括 HTML 邮件正文片段，并调用 send_email 发送。不要继续调用其他工具。",
                 })
                 # 最后再给一次机会
                 try:

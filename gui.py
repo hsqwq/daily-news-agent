@@ -619,7 +619,8 @@ class WorkbenchPage(QWidget):
             prompt += f"\n邮件收件人固定为: {recipient}"
         prompt += (
             "\n当前是真实发送模式：必须调用 send_email 工具发送邮件，不要只输出预览，也不要追问邮箱地址。"
-            "调用 send_email 前必须先生成非空完整 body_html，并在同一次工具调用中传入 recipient、subject、body_html；"
+            "调用 send_email 前必须先生成非空完整 body_html HTML 片段，且不要包含整页 HTML 或顶部横幅；"
+            "并在同一次工具调用中传入 recipient、subject、body_html；"
             "不要先空调用 send_email。如果发送工具提示缺少 body_html，必须立刻补齐后重试。"
         )
         return prompt
