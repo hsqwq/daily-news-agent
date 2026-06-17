@@ -86,7 +86,7 @@ class NewsAgent:
     def _default_recipient(self) -> str:
         """从配置中解析默认收件人，供模型漏填或填占位邮箱时兜底。"""
         email_config = self.settings.get("email", {})
-        return self._resolve_env(email_config.get("default_recipient", "")) or "preview@example.com"
+        return self._resolve_env(email_config.get("default_recipient", ""))
 
     async def _execute_tool(self, tool_name: str, arguments: dict) -> dict:
         """执行工具调用。"""
@@ -103,11 +103,20 @@ class NewsAgent:
                 if not sig_kwargs.get("body_html", "").strip():
                     return {
                         "success": False,
-                        "message": "send_email 缺少 body_html，邮件未发送。",
+                        "message": (
+                            "send_email 缺少 body_html，邮件未发送。请立即重新调用 send_email，"
+                            "并提供完整 HTML 正文，不要只传 recipient 和 subject。"
+                        ),
                     }
                 recipient = sig_kwargs.get("recipient", "")
                 if not recipient or recipient.endswith("@example.com"):
-                    sig_kwargs["recipient"] = self._default_recipient()
+                    default_recipient = self._default_recipient()
+                    if not default_recipient:
+                        return {
+                            "success": False,
+                            "message": "缺少收件人，且 DEFAULT_RECIPIENT 未配置，邮件未发送。",
+                        }
+                    sig_kwargs["recipient"] = default_recipient
             if "db" in func.__code__.co_varnames[: func.__code__.co_argcount]:
                 sig_kwargs["db"] = self.db
 

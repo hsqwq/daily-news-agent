@@ -240,7 +240,10 @@ class AgentRunThread(QThread):
                 elif tool_name == "send_email":
                     self._delivery_success = bool(result.get("success"))
                     self.emit_progress(94 if self._delivery_success else 90, "邮件工具返回")
-                    self.log.emit(result.get("message", "邮件工具已返回。"))
+                    message = result.get("message") or result.get("error") or "邮件工具已返回。"
+                    self.log.emit(message)
+                    if not self._delivery_success:
+                        raise RuntimeError(message)
                 elif tool_name == "search_news":
                     self.emit_progress(54, "检索补充完成")
                 return result

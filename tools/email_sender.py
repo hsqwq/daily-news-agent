@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
 from datetime import datetime, timezone
+from pathlib import Path
 
 import yaml
 import aiosmtplib
