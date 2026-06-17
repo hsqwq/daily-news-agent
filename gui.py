@@ -242,8 +242,6 @@ class AgentRunThread(QThread):
                     self.emit_progress(94 if self._delivery_success else 90, "邮件工具返回")
                     message = result.get("message") or result.get("error") or "邮件工具已返回。"
                     self.log.emit(message)
-                    if not self._delivery_success:
-                        raise RuntimeError(message)
                 elif tool_name == "search_news":
                     self.emit_progress(54, "检索补充完成")
                 return result
@@ -611,7 +609,10 @@ class WorkbenchPage(QWidget):
         recipient = self.email_input.text().strip() or default_recipient
         if recipient:
             prompt += f"\n邮件收件人固定为: {recipient}"
-        prompt += "\n当前是真实发送模式：必须调用 send_email 工具发送邮件，不要只输出预览，也不要追问邮箱地址。"
+        prompt += (
+            "\n当前是真实发送模式：必须调用 send_email 工具发送邮件，不要只输出预览，也不要追问邮箱地址。"
+            "send_email 的 body_html 必须是非空完整 HTML；如果发送工具提示缺少 body_html，必须立刻补齐后重试。"
+        )
         return prompt
 
     def run_agent(self) -> None:
