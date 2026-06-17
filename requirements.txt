@@ -1,0 +1,27 @@
+# Core
+httpx>=0.27.0
+h2>=4.1.0               # httpx HTTP/2 support
+openai>=1.30.0          # DeepSeek API 兼容 OpenAI SDK
+pyyaml>=6.0
+pydantic>=2.7.0
+python-dotenv>=1.0.0
+
+# RSS & Content
+feedparser>=6.0.11
+readability-lxml>=0.8.1
+lxml>=5.2.0
+beautifulsoup4>=4.12.0
+
+# Email
+aiosmtplib>=3.0.0
+
+# Database
+aiosqlite>=0.20.0
+
+# Utilities
+python-dateutil>=2.9.0
+tenacity>=8.3.0          # 重试机制
+rich>=13.7.0             # 终端美化输出
+
+# Desktop GUI
+PyQt6>=6.7.0

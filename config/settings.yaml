@@ -1,0 +1,35 @@
+# 每日新闻智能摘要 Agent — 全局配置
+
+agent:
+  name: "每日新闻智能摘要助手"
+  version: "1.0.0"
+  max_tool_calls: 15          # 最大工具调用轮次
+  max_articles_initial: 200   # 首次 RSS 获取最大文章数
+  max_articles_deep_read: 15  # 深度阅读文章数上限
+  summary_max_words: 1500     # 摘要最大字数
+
+llm:
+  model: "deepseek-chat"      # DeepSeek 模型
+  temperature: 0.3
+  max_tokens: 4096
+  # DeepSeek API 地址（兼容 OpenAI SDK）
+  base_url: "${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+  api_key: "${DEEPSEEK_API_KEY}"
+
+email:
+  smtp_host: "${SMTP_HOST:-smtp.qq.com}"
+  smtp_port: "${SMTP_PORT:-465}"
+  username: "${SMTP_USERNAME}"
+  password: "${SMTP_PASSWORD}"
+  from_name: "${SMTP_FROM_NAME:-每日新闻摘要}"
+  from_email: "${SMTP_FROM_EMAIL}"
+  default_recipient: "${DEFAULT_RECIPIENT}"
+
+database:
+  path: "data/news.db"
+  retention_days: 7           # 文章保留天数
+
+rss:
+  request_timeout: 20         # 单个 RSS 源请求超时（秒）
+  max_concurrent: 10          # 最大并发请求数
+  user_agent: "DailyNewsAgent/1.0 (News Aggregation Bot)"

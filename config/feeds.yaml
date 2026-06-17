@@ -1,0 +1,226 @@
+# 每日新闻智能摘要 Agent — RSS 源配置
+# 按 Folo (RSSNext) 分类体系组织，覆盖 7 大类 60+ 优质源
+# 分类: ai, tech, news, finance, science, programming, china
+
+categories:
+  ai:
+    label: "🤖 AI 与人工智能"
+    description: "AI 行业前沿、大模型、产品发布"
+    feeds:
+      - name: "OpenAI Blog"
+        url: "https://openai.com/blog/rss.xml"
+        language: en
+      - name: "Anthropic Research"
+        url: "https://www.anthropic.com/research/feed"
+        language: en
+      - name: "Google AI Blog"
+        url: "https://blog.google/technology/ai/rss/"
+        language: en
+      - name: "Meta AI Blog"
+        url: "https://about.fb.com/news/category/technology/feed/"
+        language: en
+      - name: "Hugging Face Blog"
+        url: "https://huggingface.co/blog/feed.xml"
+        language: en
+      - name: "Google DeepMind"
+        url: "https://blog.research.google/feeds/posts/default"
+        language: en
+      - name: "The Batch (Andrew Ng)"
+        url: "https://www.deeplearning.ai/the-batch/rss/"
+        language: en
+      - name: "MIT Technology Review - AI"
+        url: "https://www.technologyreview.com/feed/"
+        language: en
+      - name: "机器之心"
+        url: "https://www.jiqizhixin.com/rss"
+        language: zh
+      - name: "量子位"
+        url: "https://www.qbitai.com/feed"
+        language: zh
+      - name: "VentureBeat AI"
+        url: "https://venturebeat.com/category/ai/feed/"
+        language: en
+      - name: "Towards Data Science"
+        url: "https://towardsdatascience.com/feed"
+        language: en
+
+  tech:
+    label: "💻 科技新闻"
+    description: "科技行业动态、产品发布、数码评测"
+    feeds:
+      - name: "TechCrunch"
+        url: "https://techcrunch.com/feed/"
+        language: en
+      - name: "The Verge"
+        url: "https://www.theverge.com/rss/index.xml"
+        language: en
+      - name: "Ars Technica"
+        url: "https://feeds.arstechnica.com/arstechnica/index"
+        language: en
+      - name: "WIRED"
+        url: "https://www.wired.com/feed/rss"
+        language: en
+      - name: "Engadget"
+        url: "https://www.engadget.com/rss.xml"
+        language: en
+      - name: "Gizmodo"
+        url: "https://gizmodo.com/rss"
+        language: en
+      - name: "The Next Web"
+        url: "https://thenextweb.com/feed"
+        language: en
+      - name: "Hacker News (hnrss)"
+        url: "https://hnrss.org/frontpage?count=20"
+        language: en
+      - name: "Slashdot"
+        url: "https://rss.slashdot.org/Slashdot/slashdot"
+        language: en
+      - name: "9to5Mac"
+        url: "https://9to5mac.com/feed"
+        language: en
+      - name: "Apple Newsroom"
+        url: "https://www.apple.com/newsroom/rss-feed.rss"
+        language: en
+      - name: "Android Authority"
+        url: "https://www.androidauthority.com/feed"
+        language: en
+      - name: "36Kr"
+        url: "https://36kr.com/feed"
+        language: zh
+      - name: "少数派"
+        url: "https://sspai.com/feed"
+        language: zh
+
+  news:
+    label: "📰 综合新闻"
+    description: "全球及国内重要新闻"
+    feeds:
+      - name: "BBC News"
+        url: "http://feeds.bbci.co.uk/news/rss.xml"
+        language: en
+      - name: "Reuters Top News"
+        url: "https://www.reutersagency.com/feed/?best-topics=tech&post_type=best"
+        language: en
+      - name: "CNN World"
+        url: "http://rss.cnn.com/rss/edition_world.rss"
+        language: en
+      - name: "The Guardian - World"
+        url: "https://www.theguardian.com/world/rss"
+        language: en
+      - name: "NYT World"
+        url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
+        language: en
+      - name: "Google News Top"
+        url: "https://news.google.com/rss"
+        language: en
+      - name: "NPR News"
+        url: "https://feeds.npr.org/1001/rss.xml"
+        language: en
+      - name: "Al Jazeera"
+        url: "https://www.aljazeera.com/xml/rss/all.xml"
+        language: en
+      - name: "环球时报"
+        url: "https://www.globaltimes.cn/rss/top.xml"
+        language: en
+      - name: "中国日报"
+        url: "https://www.chinadaily.com.cn/rss/world_rss.xml"
+        language: en
+
+  finance:
+    label: "💰 财经金融"
+    description: "全球市场、经济动态、投资"
+    feeds:
+      - name: "CNBC Top News"
+        url: "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+        language: en
+      - name: "Yahoo Finance"
+        url: "https://finance.yahoo.com/news/rssindex"
+        language: en
+      - name: "Bloomberg Markets"
+        url: "https://feeds.bloomberg.com/markets/news.rss"
+        language: en
+      - name: "Forbes Business"
+        url: "https://www.forbes.com/business/feed/"
+        language: en
+      - name: "WSJ Markets"
+        url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+        language: en
+      - name: "Investing.com"
+        url: "https://www.investing.com/rss/news.rss"
+        language: en
+      - name: "Seeking Alpha"
+        url: "https://seekingalpha.com/market_currents.xml"
+        language: en
+      - name: "雪球"
+        url: "https://xueqiu.com/hots/topic/rss"
+        language: zh
+      - name: "华尔街见闻"
+        url: "https://wallstreetcn.com/rss"
+        language: zh
+
+  science:
+    label: "🔬 科学与自然"
+    description: "科学研究、自然发现、健康"
+    feeds:
+      - name: "Nature"
+        url: "https://www.nature.com/nature.rss"
+        language: en
+      - name: "ScienceDaily"
+        url: "https://www.sciencedaily.com/rss/all.xml"
+        language: en
+      - name: "Phys.org"
+        url: "https://phys.org/rss-feed/"
+        language: en
+      - name: "BBC Science"
+        url: "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml"
+        language: en
+      - name: "Scientific American"
+        url: "http://rss.sciam.com/ScientificAmerican-Global"
+        language: en
+      - name: "果壳网"
+        url: "https://www.guokr.com/rss/"
+        language: zh
+      - name: "NYT Science"
+        url: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml"
+        language: en
+
+  programming:
+    label: "👨‍💻 软件开发"
+    description: "编程技术、架构设计、开源动态"
+    feeds:
+      - name: "GitHub Blog"
+        url: "https://github.blog/feed/"
+        language: en
+      - name: "Stack Overflow Blog"
+        url: "https://stackoverflow.blog/feed/"
+        language: en
+      - name: "InfoQ"
+        url: "https://feed.infoq.com"
+        language: en
+      - name: "CSS-Tricks"
+        url: "https://css-tricks.com/feed/"
+        language: en
+      - name: "Smashing Magazine"
+        url: "https://www.smashingmagazine.com/feed/"
+        language: en
+      - name: "Netflix TechBlog"
+        url: "https://netflixtechblog.com/feed"
+        language: en
+      - name: "Martin Fowler"
+        url: "https://martinfowler.com/feed.atom"
+        language: en
+      - name: "HackerNoon"
+        url: "https://medium.com/feed/hackernoon"
+        language: en
+      - name: "掘金热门"
+        url: "https://api.juejin.cn/feed_api/v1/feed/trending/tech"
+        language: zh
+      - name: "SegmentFault"
+        url: "https://segmentfault.com/feeds"
+        language: zh
+      - name: "Product Hunt"
+        url: "https://www.producthunt.com/feed"
+        language: en
+      - name: "Daring Fireball"
+        url: "https://daringfireball.net/feeds/main"
+        language: en
