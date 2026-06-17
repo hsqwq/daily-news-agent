@@ -80,7 +80,7 @@ cp .env.example .env
 # 必填：DeepSeek API Key
 DEEPSEEK_API_KEY=sk-your-deepseek-api-key
 
-# 可选：邮件发送（不配置则使用预览模式，HTML 保存到本地）
+# 必填：邮件发送
 SMTP_HOST=smtp.qq.com
 SMTP_PORT=465
 SMTP_USERNAME=your-email@qq.com
@@ -102,11 +102,8 @@ python main.py --cli
 # 单次运行
 python main.py --prompt "总结今天AI领域最重要的10条新闻"
 
-# 预览模式（邮件保存为 HTML 文件）
-python main.py --dry-run --prompt "今日科技新闻摘要"
-
-# 真实发送邮件
-python main.py --send --prompt "今日财经要闻" --email me@qq.com
+# 指定收件人
+python main.py --prompt "今日财经要闻" --email me@qq.com
 ```
 
 ### 4. 图形化界面
@@ -114,7 +111,7 @@ python main.py --send --prompt "今日财经要闻" --email me@qq.com
 无参数运行 `python main.py` 会进入 PyQt6 桌面界面，包含两个主要子界面：
 
 - **配置中心**：编辑 `.env` 中的 DeepSeek、模型、SMTP、默认收件人和 Agent 参数，并检查关键配置状态。
-- **任务工作台**：输入提示词、选择 RSS 分类、设置预览/发送模式、运行 Agent、查看工具调用日志、数据库统计和最新 HTML 邮件预览。
+- **任务工作台**：输入提示词、选择 RSS 分类、运行 Agent、查看简洁执行日志、数据库统计和最终响应。
 
 如果只想验证外部工具链而不调用 LLM，可在任务工作台点击「RSS 工具测试」。
 
@@ -147,8 +144,7 @@ ai_agent/
 │   ├── db.py               # SQLite 数据库操作
 │   └── text_utils.py       # 文本处理工具
 ├── data/                   # 运行时数据（自动创建）
-│   ├── news.db             # SQLite 数据库
-│   └── email_previews/     # 邮件预览 HTML
+│   └── news.db             # SQLite 数据库
 ├── main.py                 # 入口
 ├── requirements.txt
 ├── .env.example

@@ -16,6 +16,7 @@ build/
 data/news.db
 data/email_previews/
 data/gui_layout_check*.png
+data/gui_*_check*.png
 
 # IDE
 .idea/

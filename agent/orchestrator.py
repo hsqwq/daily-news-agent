@@ -26,7 +26,6 @@ from tools import (
     TOOL_MAP,
     get_available_categories,
 )
-from tools.email_sender import send_email_dry_run
 from utils.db import NewsDatabase
 
 logger = logging.getLogger(__name__)
@@ -65,7 +64,6 @@ class NewsAgent:
         self.messages: list[dict] = []
         self.tool_call_count = 0
         self.articles_collected = 0
-        self.dry_run = False  # 测试模式：不真实发送邮件
 
     def _load_settings(self) -> dict:
         config_path = Path(__file__).parent.parent / "config" / "settings.yaml"
@@ -91,26 +89,8 @@ class NewsAgent:
         return self._resolve_env(email_config.get("default_recipient", "")) or "preview@example.com"
 
     async def _execute_tool(self, tool_name: str, arguments: dict) -> dict:
-        """
-        执行工具调用。根据 dry_run 模式决定是否真实发送邮件。
-        """
+        """执行工具调用。"""
         logger.info(f"执行工具: {tool_name}({json.dumps(arguments, ensure_ascii=False)[:200]})")
-
-        if tool_name == "send_email" and self.dry_run:
-            body_html = arguments.get("body_html", "")
-            if not body_html or not body_html.strip():
-                return {
-                    "success": False,
-                    "message": "send_email 缺少 body_html，预览文件未生成。请重新生成完整 HTML 邮件正文。",
-                }
-            recipient = arguments.get("recipient", "")
-            if not recipient or recipient.endswith("@example.com"):
-                recipient = self._default_recipient()
-            return await send_email_dry_run(
-                recipient=recipient,
-                subject=arguments.get("subject", "新闻摘要"),
-                body_html=body_html,
-            )
 
         func = TOOL_MAP.get(tool_name)
         if not func:
@@ -205,12 +185,11 @@ class NewsAgent:
 
         Args:
             user_prompt: 用户输入的提示词
-            dry_run: 是否为测试模式（不真实发送邮件，改为保存到文件）
+            dry_run: 已废弃，保留参数仅用于兼容旧调用
 
         Returns:
             Agent 的最终响应文本
         """
-        self.dry_run = dry_run
         self.tool_call_count = 0
 
         # 构建消息列表
@@ -229,7 +208,7 @@ class NewsAgent:
                 "role": "system",
                 "content": SYSTEM_PROMPT + f"\n\n## 当前日期\n今天是 {today} (UTC)。用户只关心最近 24-48 小时内的新闻。"
                     f"\n\n## 默认邮件收件人\n如果用户没有在提示词中指定邮箱，send_email 的 recipient 必须使用：{default_recipient}。"
-                    "不要向用户追问邮箱地址；除非工具返回发送失败，否则应直接调用 send_email 完成发送或预览。"
+                    "不要向用户追问邮箱地址；除非工具返回发送失败，否则应直接调用 send_email 完成发送。"
                     f"\n\n## 可用 RSS 分类\n{cat_info}",
             },
             {
@@ -371,13 +350,8 @@ class NewsAgent:
 
             print("\n🤖 Agent 正在工作...\n")
 
-            # 使用 dry_run 以防没有配置真实邮件
-            is_dry = not os.environ.get("SMTP_PASSWORD") and not os.environ.get("SMTP_USERNAME")
-            if is_dry:
-                print("  ⚠️ 未配置邮件，使用预览模式（HTML 保存到 data/email_previews/）\n")
-
             try:
-                result = await self.run(user_input, dry_run=is_dry)
+                result = await self.run(user_input, dry_run=False)
                 print("\n" + "-" * 50)
                 print(result)
                 print("-" * 50)

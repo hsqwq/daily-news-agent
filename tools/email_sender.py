@@ -1,17 +1,21 @@
 """
 邮件发送工具 — 通过 SMTP 发送 HTML 格式的新闻摘要
 """
-import asyncio
 import logging
+from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pathlib import Path
+from email.utils import formataddr
 from datetime import datetime, timezone
 
 import yaml
 import aiosmtplib
 
 logger = logging.getLogger(__name__)
+
+
+def _looks_like_email(value: str) -> bool:
+    return bool(value and "@" in value and "." in value.split("@")[-1])
 
 # 工具定义 — 用于 DeepSeek function calling
 SEND_EMAIL_SCHEMA = {
@@ -92,12 +96,23 @@ async def send_email(
     username = config.get("username", "")
     password = config.get("password", "")
     from_name = config.get("from_name", "每日新闻摘要")
-    from_email = config.get("from_email", username)
+    configured_from_email = config.get("from_email", "")
+    from_email = configured_from_email if _looks_like_email(configured_from_email) else username
 
     if not username or not password:
         return {
             "success": False,
             "message": "邮件配置不完整，请设置 SMTP_USERNAME 和 SMTP_PASSWORD 环境变量",
+        }
+    if not _looks_like_email(username):
+        return {
+            "success": False,
+            "message": "SMTP_USERNAME 必须是有效邮箱地址，QQ 邮箱要求 From 与登录邮箱一致",
+        }
+    if not _looks_like_email(from_email):
+        return {
+            "success": False,
+            "message": "发件邮箱无效，请设置 SMTP_FROM_EMAIL 或使用邮箱格式的 SMTP_USERNAME",
         }
 
     # 构建完整 HTML
@@ -144,9 +159,9 @@ async def send_email(
 </html>"""
 
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"{from_name} <{from_email}>"
+    msg["From"] = formataddr((Header(from_name, "utf-8").encode(), from_email))
     msg["To"] = recipient
-    msg["Subject"] = subject
+    msg["Subject"] = Header(subject, "utf-8").encode()
     msg.attach(MIMEText(full_html, "html", "utf-8"))
 
     try:
@@ -185,67 +200,3 @@ async def send_email(
     except Exception as e:
         logger.error(f"邮件发送失败: {e}")
         return {"success": False, "message": f"邮件发送失败: {str(e)}"}
-
-
-async def send_email_dry_run(
-    recipient: str,
-    subject: str,
-    body_html: str,
-) -> dict:
-    """
-    模拟邮件发送（用于测试），将内容写入本地文件而不是实际发送
-    """
-    output_dir = Path(__file__).parent.parent / "data" / "email_previews"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"email_{timestamp}.html"
-    filepath = output_dir / filename
-
-    # 构建完整 HTML（与 send_email 相同的模板）
-    full_html = f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-</head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:20px 0;">
-        <tr>
-            <td align="center">
-                <table width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-                    <tr>
-                        <td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:32px 40px;text-align:center;">
-                            <h1 style="color:#ffffff;font-size:24px;margin:0 0 8px 0;">📰 每日新闻智能摘要</h1>
-                            <p style="color:rgba(255,255,255,0.85);font-size:13px;margin:0;">
-                                由 AI Agent 自动生成 · {datetime.now().strftime('%Y年%m月%d日')}
-                            </p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding:32px 40px;">
-                            {body_html}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="background-color:#fafafa;padding:20px 40px;border-top:1px solid #eee;text-align:center;">
-                            <p style="color:#999;font-size:12px;margin:0;">
-                                [预览模式] 本邮件由 AI 新闻摘要 Agent 自动生成<br>
-                                数据来源: 60+ 全球 RSS 新闻源 | 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>"""
-
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(full_html)
-
-    return {
-        "success": True,
-        "message": f"[预览模式] 邮件已保存至 {filepath}",
-        "preview_path": str(filepath),
-    }

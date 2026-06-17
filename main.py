@@ -12,11 +12,8 @@
     # 单次模式（指定提示词）
     python main.py --prompt "总结今天AI领域最重要的5条新闻"
 
-    # 预览模式（不真实发送邮件）
-    python main.py --dry-run --prompt "今日科技新闻摘要"
-
-    # 单次模式 + 直接发送
-    python main.py --send --prompt "总结今日财经要闻" --email your@email.com
+    # 单次模式 + 指定收件人
+    python main.py --prompt "总结今日财经要闻" --email your@email.com
 """
 import argparse
 import asyncio
@@ -55,8 +52,7 @@ async def async_main():
   python main.py                                      # 图形界面
   python main.py --cli                                # 终端交互模式
   python main.py --prompt "今天AI领域有什么大事"        # 单次运行
-  python main.py --dry-run --prompt "科技新闻摘要"      # 预览模式
-  python main.py --send --prompt "财经要闻" --email me@qq.com  # 发送邮件
+  python main.py --prompt "财经要闻" --email me@qq.com  # 指定收件人
         """,
     )
     parser.add_argument(
@@ -73,16 +69,6 @@ async def async_main():
         "--prompt", "-p",
         type=str,
         help="单次模式的提示词（不提供则进入交互模式）",
-    )
-    parser.add_argument(
-        "--dry-run", "-d",
-        action="store_true",
-        help="预览模式：不真实发送邮件，HTML 保存到 data/email_previews/",
-    )
-    parser.add_argument(
-        "--send", "-s",
-        action="store_true",
-        help="允许真实发送邮件（需要配置 SMTP 环境变量）",
     )
     parser.add_argument(
         "--email", "-e",
@@ -138,14 +124,10 @@ async def async_main():
     if args.email:
         user_prompt += f"\n\n请将摘要发送到邮箱: {args.email}"
 
-    is_dry = not args.send
-    if is_dry:
-        print("📧 预览模式（邮件将保存为 HTML 文件而非真实发送）\n")
-
     print(f"🚀 运行中... 提示词: {args.prompt[:100]}\n")
 
     try:
-        result = await agent.run(user_prompt, dry_run=is_dry)
+        result = await agent.run(user_prompt, dry_run=False)
         print("\n" + "=" * 70)
         print(result)
         print("=" * 70)

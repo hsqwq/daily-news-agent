@@ -2,8 +2,8 @@
 PyQt6 desktop interface for the news summary agent.
 
 The GUI is intentionally more than a thin wrapper around the CLI: it exposes
-runtime configuration, task composition, execution telemetry, local data stats,
-and generated email previews in one operator-friendly surface.
+runtime configuration, task composition, execution telemetry, and local data
+stats in one operator-friendly surface.
 """
 from __future__ import annotations
 
@@ -17,9 +17,8 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-from bs4 import BeautifulSoup
-from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QThread, pyqtSignal, QUrl
-from PyQt6.QtGui import QDesktopServices, QFont
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -36,7 +35,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QSpinBox,
     QSplitter,
     QStackedWidget,
@@ -57,7 +55,6 @@ ROOT = Path(__file__).resolve().parent
 ENV_PATH = ROOT / ".env"
 ENV_EXAMPLE_PATH = ROOT / ".env.example"
 DB_PATH = ROOT / "data" / "news.db"
-PREVIEW_DIR = ROOT / "data" / "email_previews"
 
 
 FIELD_GROUPS = [
@@ -137,74 +134,9 @@ def mask_secret(value: str) -> str:
     return f"{value[:4]}...{value[-4:]}"
 
 
-def latest_preview_file() -> Optional[Path]:
-    if not PREVIEW_DIR.exists():
-        return None
-    previews = sorted(PREVIEW_DIR.glob("*.html"), key=lambda p: p.stat().st_mtime, reverse=True)
-    return previews[0] if previews else None
-
-
 def usable_email(value: str) -> bool:
     value = value.strip()
     return bool(value and "@" in value and "your-" not in value and not value.endswith("@example.com"))
-
-
-def preview_html_for_app(raw_html: str, filename: str) -> str:
-    """Convert email-client HTML into a stable in-app reading preview."""
-    soup = BeautifulSoup(raw_html, "html.parser")
-    for tag in soup(["script", "style", "meta", "head"]):
-        tag.decompose()
-
-    fragments: list[str] = [
-        "<div style='font-family:Arial,\"PingFang SC\",\"Microsoft YaHei\",sans-serif;"
-        "color:#17202a;background:#ffffff;padding:18px;line-height:1.65;'>",
-        f"<div style='font-size:12px;color:#718096;margin-bottom:14px;'>应用内阅读版 · {html.escape(filename)}</div>",
-    ]
-
-    seen: set[str] = set()
-    for tag in soup.find_all(["h1", "h2", "h3", "p", "a", "span"]):
-        text = tag.get_text(" ", strip=True)
-        if not text or text in seen:
-            continue
-        seen.add(text)
-
-        if tag.name == "h1":
-            fragments.append(
-                f"<h1 style='font-size:22px;margin:8px 0 14px 0;color:#101828;'>{html.escape(text)}</h1>"
-            )
-        elif tag.name == "h2":
-            fragments.append(
-                f"<h2 style='font-size:17px;margin:22px 0 10px 0;padding-bottom:7px;"
-                f"border-bottom:2px solid #2c86d1;color:#1f2937;'>{html.escape(text)}</h2>"
-            )
-        elif tag.name == "h3":
-            link = tag.find("a")
-            href = link.get("href", "") if link else ""
-            if href:
-                fragments.append(
-                    f"<h3 style='font-size:15px;margin:16px 0 6px 0;'>"
-                    f"<a style='color:#155eef;text-decoration:none;' href='{html.escape(href)}'>{html.escape(text)}</a>"
-                    f"</h3>"
-                )
-            else:
-                fragments.append(
-                    f"<h3 style='font-size:15px;margin:16px 0 6px 0;color:#253241;'>{html.escape(text)}</h3>"
-                )
-        elif tag.name == "p":
-            fragments.append(
-                f"<p style='font-size:13px;margin:7px 0;color:#344054;'>{html.escape(text)}</p>"
-            )
-        elif tag.name == "span" and ("📰" in text or "来源" in text):
-            fragments.append(
-                f"<div style='font-size:12px;color:#718096;margin:4px 0 12px 0;'>{html.escape(text)}</div>"
-            )
-
-    if len(fragments) <= 2:
-        text = soup.get_text("\n", strip=True)
-        fragments.append(f"<pre style='white-space:pre-wrap;font-size:13px;'>{html.escape(text[:6000])}</pre>")
-
-    fragments.append("</div>")
-    return "".join(fragments)
 
 
 class StatCard(QFrame):
@@ -252,10 +184,9 @@ class AgentRunThread(QThread):
     done = pyqtSignal(str)
     failed = pyqtSignal(str)
 
-    def __init__(self, prompt: str, dry_run: bool, model: Optional[str] = None):
+    def __init__(self, prompt: str, model: Optional[str] = None):
         super().__init__()
         self.prompt = prompt
-        self.dry_run = dry_run
         self.model = model
         self._progress_value = 0
         self._delivery_success = False
@@ -283,8 +214,14 @@ class AgentRunThread(QThread):
                     "fetch_article_content": 58,
                     "send_email": 88,
                 }.get(tool_name, 30)
-                self.emit_progress(stage_progress, f"调用 {tool_name}")
-                self.log.emit(f"调用工具 {tool_name}: {arguments}")
+                status_text = {
+                    "fetch_rss_feeds": "正在收集 RSS 新闻",
+                    "search_news": "正在检索新闻库",
+                    "fetch_article_content": "正在抓取重点正文",
+                    "send_email": "正在发送邮件",
+                }.get(tool_name, f"正在调用 {tool_name}")
+                self.emit_progress(stage_progress, status_text)
+                self.log.emit(status_text)
                 result = await original_execute(tool_name, arguments)
                 if tool_name == "fetch_rss_feeds":
                     self.emit_progress(38, "RSS 收集完成")
@@ -309,10 +246,10 @@ class AgentRunThread(QThread):
                 return result
 
             agent._execute_tool = traced_execute  # type: ignore[method-assign]
-            self.log.emit(f"Agent 启动：model={agent.model}, dry_run={self.dry_run}")
+            self.log.emit(f"Agent 启动：{agent.model}")
             self.emit_progress(10, "Agent 运行中")
-            result = await agent.run(self.prompt, dry_run=self.dry_run)
-            if not self.dry_run and not self._delivery_success:
+            result = await agent.run(self.prompt, dry_run=False)
+            if not self._delivery_success:
                 raise RuntimeError("真实发送未确认完成：send_email 未成功返回。请检查执行日志中的 SMTP 错误。")
             self.emit_progress(98, "整理最终响应")
             return result
@@ -401,7 +338,6 @@ class ConfigPage(QWidget):
         notes.setMaximumHeight(150)
         notes.setHtml(
             "<b>运行策略</b><br>"
-            "预览模式不需要 SMTP，会把邮件保存到 data/email_previews。"
             "真实发送需要 SMTP_USERNAME、SMTP_PASSWORD 和 DEFAULT_RECIPIENT。"
             "如果只想测试 RSS 工具，可以在任务工作台点击 RSS 工具测试。"
         )
@@ -437,7 +373,7 @@ class ConfigPage(QWidget):
         api_key = values.get("DEEPSEEK_API_KEY", "")
         smtp_ready = all(values.get(k) for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD"))
         self.api_card.set_value("已配置" if api_key and "your-" not in api_key else "未配置", mask_secret(api_key))
-        self.smtp_card.set_value("可发送" if smtp_ready else "预览优先", values.get("SMTP_HOST", "smtp.qq.com"))
+        self.smtp_card.set_value("可发送" if smtp_ready else "未完整配置", values.get("SMTP_HOST", "smtp.qq.com"))
         if ENV_PATH.exists():
             timestamp = datetime.fromtimestamp(ENV_PATH.stat().st_mtime).strftime("%m-%d %H:%M")
             self.env_card.set_value("已存在", f"上次修改 {timestamp}")
@@ -478,10 +414,8 @@ class WorkbenchPage(QWidget):
         self.agent_thread: Optional[AgentRunThread] = None
         self.rss_thread: Optional[RssSmokeThread] = None
         self.category_checks: dict[str, QCheckBox] = {}
-        self.last_preview: Optional[Path] = None
         self._build()
         self.refresh_stats()
-        self.load_latest_preview()
 
     def _build(self) -> None:
         outer = QVBoxLayout(self)
@@ -493,7 +427,7 @@ class WorkbenchPage(QWidget):
         heading_box = QVBoxLayout()
         title = QLabel("任务工作台")
         title.setObjectName("PageTitle")
-        subtitle = QLabel("输入提示词、选择新闻范围、运行 Agent，并在右侧查看日志与邮件预览。")
+        subtitle = QLabel("输入提示词、选择新闻范围、运行 Agent，并在右侧查看执行日志与最终响应。")
         subtitle.setObjectName("Muted")
         heading_box.addWidget(title)
         heading_box.addWidget(subtitle)
@@ -511,6 +445,8 @@ class WorkbenchPage(QWidget):
         progress_layout.setContentsMargins(18, 12, 18, 12)
         self.progress_label = QLabel("等待任务")
         self.progress_label.setObjectName("ProgressLabel")
+        self.progress_label.setFixedWidth(132)
+        self.progress_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
@@ -533,13 +469,8 @@ class WorkbenchPage(QWidget):
         left_scroll.setFrameShape(QFrame.Shape.NoFrame)
         left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         left_scroll.setWidget(left)
-        right_scroll = QScrollArea()
-        right_scroll.setWidgetResizable(True)
-        right_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        right_scroll.setWidget(right)
         splitter.addWidget(left_scroll)
-        splitter.addWidget(right_scroll)
+        splitter.addWidget(right)
         splitter.setSizes([560, 520])
         outer.addWidget(splitter, 1)
 
@@ -562,7 +493,7 @@ class WorkbenchPage(QWidget):
         prompt_layout.addLayout(preset_row)
         self.prompt_edit = QTextEdit()
         self.prompt_edit.setMinimumHeight(150)
-        self.prompt_edit.setPlaceholderText("例如：总结今天 AI 与科技领域最重要的新闻，按重要性排序，并保存为邮件预览。")
+        self.prompt_edit.setPlaceholderText("例如：总结今天 AI 与科技领域最重要的新闻，按重要性排序，并发送邮件。")
         self.prompt_edit.setPlainText(self.preset_combo.currentText())
         prompt_layout.addWidget(self.prompt_edit)
         left_layout.addWidget(prompt_group)
@@ -586,26 +517,19 @@ class WorkbenchPage(QWidget):
         options_layout.setContentsMargins(22, 38, 22, 18)
         options_layout.setVerticalSpacing(12)
         options_layout.setHorizontalSpacing(18)
-        self.dry_run_check = QCheckBox("预览模式：保存 HTML，不真实发送邮件")
-        self.dry_run_check.setChecked(True)
-        self.send_check = QCheckBox("允许真实发送邮件")
-        self.dry_run_check.toggled.connect(self._dry_run_toggled)
-        self.send_check.toggled.connect(self._send_toggled)
-        self.mode_label = QLabel("当前模式：仅生成 HTML 预览，不会发送到邮箱")
-        self.mode_label.setObjectName("ModeLabel")
+        self.mode_label = QLabel("当前模式：真实发送邮件")
+        self.mode_label.setObjectName("ModeLabelSend")
         self.email_input = QLineEdit()
         self.email_input.setPlaceholderText("收件邮箱（留空使用 DEFAULT_RECIPIENT）")
         self.email_input.textChanged.connect(lambda: self._refresh_mode_label())
         self.depth_spin = QSpinBox()
         self.depth_spin.setRange(3, 15)
         self.depth_spin.setValue(8)
-        options_layout.addWidget(self.dry_run_check, 0, 0, 1, 2)
-        options_layout.addWidget(self.send_check, 1, 0, 1, 2)
-        options_layout.addWidget(QLabel("重点深读篇数建议"), 2, 0)
-        options_layout.addWidget(self.depth_spin, 2, 1)
-        options_layout.addWidget(QLabel("收件邮箱"), 3, 0)
-        options_layout.addWidget(self.email_input, 3, 1)
-        options_layout.addWidget(self.mode_label, 4, 0, 1, 2)
+        options_layout.addWidget(QLabel("重点深读篇数建议"), 0, 0)
+        options_layout.addWidget(self.depth_spin, 0, 1)
+        options_layout.addWidget(QLabel("收件邮箱"), 1, 0)
+        options_layout.addWidget(self.email_input, 1, 1)
+        options_layout.addWidget(self.mode_label, 2, 0, 1, 2)
         left_layout.addWidget(options_group)
 
         action_row = QHBoxLayout()
@@ -613,20 +537,15 @@ class WorkbenchPage(QWidget):
         rss_button.clicked.connect(self.run_rss_smoke)
         stats_button = QPushButton("刷新数据")
         stats_button.clicked.connect(self.refresh_stats)
-        preview_button = QPushButton("刷新预览")
-        preview_button.clicked.connect(self.load_latest_preview)
         action_row.addWidget(rss_button)
         action_row.addWidget(stats_button)
-        action_row.addWidget(preview_button)
         action_row.addStretch(1)
         left_layout.addLayout(action_row)
 
         stats_row = QHBoxLayout()
         self.article_card = StatCard("文章库", "0", "SQLite")
-        self.preview_card = StatCard("邮件预览", "0", "HTML")
         self.feed_card = StatCard("RSS 分类", str(len(get_available_categories())), "可用分类")
         stats_row.addWidget(self.article_card)
-        stats_row.addWidget(self.preview_card)
         stats_row.addWidget(self.feed_card)
         left_layout.addLayout(stats_row)
         left_layout.addStretch(1)
@@ -636,71 +555,27 @@ class WorkbenchPage(QWidget):
         log_layout.setContentsMargins(22, 38, 22, 18)
         self.log_view = QTextEdit()
         self.log_view.setReadOnly(True)
-        self.log_view.setMinimumHeight(240)
+        self.log_view.setMinimumHeight(300)
         log_layout.addWidget(self.log_view)
-        right_layout.addWidget(log_group)
+        right_layout.addWidget(log_group, 1)
 
         result_group = QGroupBox("最终响应")
         result_layout = QVBoxLayout(result_group)
         result_layout.setContentsMargins(22, 38, 22, 18)
         self.result_view = QTextEdit()
         self.result_view.setReadOnly(True)
-        self.result_view.setMinimumHeight(160)
+        self.result_view.setMinimumHeight(240)
         result_layout.addWidget(self.result_view)
-        right_layout.addWidget(result_group)
-
-        preview_group = QGroupBox("最新邮件预览")
-        preview_layout = QVBoxLayout(preview_group)
-        preview_layout.setContentsMargins(22, 38, 22, 18)
-        preview_actions = QHBoxLayout()
-        self.preview_label = QLabel("暂无预览")
-        open_button = QPushButton("浏览器打开")
-        open_button.clicked.connect(self.open_preview)
-        preview_actions.addWidget(self.preview_label, 1)
-        preview_actions.addWidget(open_button)
-        preview_layout.addLayout(preview_actions)
-        self.preview_browser = QTextBrowser()
-        self.preview_browser.setOpenExternalLinks(True)
-        self.preview_browser.setMinimumHeight(220)
-        preview_layout.addWidget(self.preview_browser)
-        right_layout.addWidget(preview_group, 1)
-        self._refresh_mode_label()
-
-    def _dry_run_toggled(self, checked: bool) -> None:
-        if checked:
-            self.send_check.blockSignals(True)
-            self.send_check.setChecked(False)
-            self.send_check.blockSignals(False)
-        elif not self.send_check.isChecked():
-            self.dry_run_check.blockSignals(True)
-            self.dry_run_check.setChecked(True)
-            self.dry_run_check.blockSignals(False)
-        self._refresh_mode_label()
-
-    def _send_toggled(self, checked: bool) -> None:
-        if checked:
-            self.dry_run_check.blockSignals(True)
-            self.dry_run_check.setChecked(False)
-            self.dry_run_check.blockSignals(False)
-        elif not self.dry_run_check.isChecked():
-            self.dry_run_check.blockSignals(True)
-            self.dry_run_check.setChecked(True)
-            self.dry_run_check.blockSignals(False)
+        right_layout.addWidget(result_group, 1)
         self._refresh_mode_label()
 
     def _refresh_mode_label(self) -> None:
-        if self.send_check.isChecked():
-            recipient = self.email_input.text().strip() or self.config_page.collect_values().get("DEFAULT_RECIPIENT", "").strip()
-            target = recipient if usable_email(recipient) else "未设置有效收件人"
-            self.mode_label.setText(f"当前模式：真实发送邮件，目标邮箱：{target}")
-            self.mode_label.setObjectName("ModeLabelSend")
-            if hasattr(self, "run_button"):
-                self.run_button.setText("发送邮件")
-        else:
-            self.mode_label.setText("当前模式：仅生成 HTML 预览，不会发送到邮箱")
-            self.mode_label.setObjectName("ModeLabel")
-            if hasattr(self, "run_button"):
-                self.run_button.setText("生成预览")
+        recipient = self.email_input.text().strip() or self.config_page.collect_values().get("DEFAULT_RECIPIENT", "").strip()
+        target = recipient if usable_email(recipient) else "未设置有效收件人"
+        self.mode_label.setText(f"当前模式：真实发送邮件，目标邮箱：{target}")
+        self.mode_label.setObjectName("ModeLabelSend")
+        if hasattr(self, "run_button"):
+            self.run_button.setText("发送邮件")
         self.mode_label.style().unpolish(self.mode_label)
         self.mode_label.style().polish(self.mode_label)
 
@@ -733,10 +608,7 @@ class WorkbenchPage(QWidget):
         recipient = self.email_input.text().strip() or default_recipient
         if recipient:
             prompt += f"\n邮件收件人固定为: {recipient}"
-        if self.dry_run_check.isChecked():
-            prompt += "\n当前是预览模式：仍然必须调用 send_email 工具生成 HTML 邮件预览，不要追问邮箱地址。"
-        else:
-            prompt += "\n当前是真实发送模式：必须调用 send_email 工具发送邮件，不要只输出预览，也不要追问邮箱地址。"
+        prompt += "\n当前是真实发送模式：必须调用 send_email 工具发送邮件，不要只输出预览，也不要追问邮箱地址。"
         return prompt
 
     def run_agent(self) -> None:
@@ -749,15 +621,14 @@ class WorkbenchPage(QWidget):
         if not api_key or "your-" in api_key:
             QMessageBox.warning(self, "缺少 API Key", "请先在配置中心填写 DeepSeek API Key。")
             return
-        if not self.dry_run_check.isChecked():
-            recipient = self.email_input.text().strip() or values.get("DEFAULT_RECIPIENT", "").strip()
-            if not usable_email(recipient):
-                QMessageBox.warning(self, "缺少收件人", "真实发送需要填写收件邮箱，或在配置中心设置有效的 DEFAULT_RECIPIENT。")
-                return
-            smtp_ready = all(values.get(k) for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD"))
-            if not smtp_ready:
-                QMessageBox.warning(self, "SMTP 未配置", "真实发送需要完整 SMTP_HOST、SMTP_PORT、SMTP_USERNAME 和 SMTP_PASSWORD。")
-                return
+        recipient = self.email_input.text().strip() or values.get("DEFAULT_RECIPIENT", "").strip()
+        if not usable_email(recipient):
+            QMessageBox.warning(self, "缺少收件人", "真实发送需要填写收件邮箱，或在配置中心设置有效的 DEFAULT_RECIPIENT。")
+            return
+        smtp_ready = all(values.get(k) for k in ("SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD"))
+        if not smtp_ready:
+            QMessageBox.warning(self, "SMTP 未配置", "真实发送需要完整 SMTP_HOST、SMTP_PORT、SMTP_USERNAME 和 SMTP_PASSWORD。")
+            return
 
         self.config_page.save_values(silent=True)
         self.result_view.clear()
@@ -766,7 +637,6 @@ class WorkbenchPage(QWidget):
         self.run_button.setEnabled(False)
         self.agent_thread = AgentRunThread(
             prompt=prompt,
-            dry_run=self.dry_run_check.isChecked(),
             model=values.get("DEEPSEEK_MODEL") or None,
         )
         self.agent_thread.log.connect(self.append_log)
@@ -781,7 +651,6 @@ class WorkbenchPage(QWidget):
         self.set_progress(100, "任务完成")
         self.run_button.setEnabled(True)
         self.refresh_stats()
-        self.load_latest_preview()
 
     def _agent_failed(self, error: str) -> None:
         self.append_log(f"Agent 任务失败：{error}")
@@ -823,27 +692,7 @@ class WorkbenchPage(QWidget):
                         category_caption = " / ".join(f"{cat}:{count}" for cat, count in rows)
             except sqlite3.Error:
                 category_caption = "数据库未初始化"
-        previews = list(PREVIEW_DIR.glob("*.html")) if PREVIEW_DIR.exists() else []
         self.article_card.set_value(str(article_total), category_caption)
-        self.preview_card.set_value(str(len(previews)), "最新 HTML 预览")
-
-    def load_latest_preview(self) -> None:
-        self.last_preview = latest_preview_file()
-        if not self.last_preview:
-            self.preview_label.setText("暂无预览")
-            self.preview_browser.setHtml("<p style='color:#7b8794'>运行预览模式后，这里会显示最新 HTML 邮件。</p>")
-            return
-        timestamp = datetime.fromtimestamp(self.last_preview.stat().st_mtime).strftime("%m-%d %H:%M")
-        self.preview_label.setText(f"{self.last_preview.name} · {timestamp}")
-        raw_preview = self.last_preview.read_text(encoding="utf-8", errors="ignore")
-        self.preview_browser.setHtml(preview_html_for_app(raw_preview, self.last_preview.name))
-        self.refresh_stats()
-
-    def open_preview(self) -> None:
-        if not self.last_preview:
-            QMessageBox.information(self, "暂无预览", "还没有可打开的邮件预览。")
-            return
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.last_preview)))
 
 
 class MainWindow(QMainWindow):

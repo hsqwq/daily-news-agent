@@ -4,7 +4,7 @@ Agent 工具集 — 4 个核心工具
 from tools.rss_fetcher import fetch_rss_feeds, FETCH_RSS_SCHEMA, get_available_categories
 from tools.content_fetcher import fetch_article_content, FETCH_CONTENT_SCHEMA
 from tools.news_search import search_news, SEARCH_NEWS_SCHEMA
-from tools.email_sender import send_email, send_email_dry_run, SEND_EMAIL_SCHEMA
+from tools.email_sender import send_email, SEND_EMAIL_SCHEMA
 
 # 所有工具的函数调用 schema 列表（传给 DeepSeek API）
 ALL_TOOL_SCHEMAS = [
@@ -27,7 +27,6 @@ __all__ = [
     "fetch_article_content",
     "search_news",
     "send_email",
-    "send_email_dry_run",
     "get_available_categories",
     "FETCH_RSS_SCHEMA",
     "FETCH_CONTENT_SCHEMA",
