@@ -15,12 +15,14 @@ build/
 # Data
 data/news.db
 data/email_previews/
+data/gui_layout_check*.png
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.claude
 
 # OS
 .DS_Store
