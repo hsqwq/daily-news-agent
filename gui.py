@@ -190,10 +190,16 @@ class AgentRunThread(QThread):
         self.model = model
         self._progress_value = 0
         self._delivery_success = False
+        self._last_log_message = ""
 
     def emit_progress(self, value: int, label: str) -> None:
         self._progress_value = max(self._progress_value, min(value, 99))
         self.progress.emit(self._progress_value, label)
+
+    def emit_log_once(self, message: str) -> None:
+        if message != self._last_log_message:
+            self._last_log_message = message
+            self.log.emit(message)
 
     def run(self) -> None:
         async def task() -> str:
@@ -221,11 +227,11 @@ class AgentRunThread(QThread):
                     "send_email": "正在发送邮件",
                 }.get(tool_name, f"正在调用 {tool_name}")
                 self.emit_progress(stage_progress, status_text)
-                self.log.emit(status_text)
+                self.emit_log_once(status_text)
                 result = await original_execute(tool_name, arguments)
                 if tool_name == "fetch_rss_feeds":
                     self.emit_progress(38, "RSS 收集完成")
-                    self.log.emit(
+                    self.emit_log_once(
                         "RSS 完成："
                         f"{result.get('total_fetched', 0)} 篇，"
                         f"成功源 {result.get('feeds_success', 0)}，"
@@ -233,7 +239,7 @@ class AgentRunThread(QThread):
                     )
                 elif tool_name == "fetch_article_content":
                     self.emit_progress(68, "正文抓取完成")
-                    self.log.emit(
+                    self.emit_log_once(
                         "正文抓取完成："
                         f"成功 {result.get('success', 0)} / 总计 {result.get('total', 0)}。"
                     )
@@ -241,13 +247,15 @@ class AgentRunThread(QThread):
                     self._delivery_success = bool(result.get("success"))
                     self.emit_progress(94 if self._delivery_success else 90, "邮件工具返回")
                     message = result.get("message") or result.get("error") or "邮件工具已返回。"
-                    self.log.emit(message)
+                    if "body_html" in message or "正文为空" in message or "缺少" in message:
+                        message = "邮件正文为空，等待 Agent 自动重试。"
+                    self.emit_log_once(message)
                 elif tool_name == "search_news":
                     self.emit_progress(54, "检索补充完成")
                 return result
 
             agent._execute_tool = traced_execute  # type: ignore[method-assign]
-            self.log.emit(f"Agent 启动：{agent.model}")
+            self.emit_log_once(f"Agent 启动：{agent.model}")
             self.emit_progress(10, "Agent 运行中")
             result = await agent.run(self.prompt, dry_run=False)
             if not self._delivery_success:
@@ -611,7 +619,8 @@ class WorkbenchPage(QWidget):
             prompt += f"\n邮件收件人固定为: {recipient}"
         prompt += (
             "\n当前是真实发送模式：必须调用 send_email 工具发送邮件，不要只输出预览，也不要追问邮箱地址。"
-            "send_email 的 body_html 必须是非空完整 HTML；如果发送工具提示缺少 body_html，必须立刻补齐后重试。"
+            "调用 send_email 前必须先生成非空完整 body_html，并在同一次工具调用中传入 recipient、subject、body_html；"
+            "不要先空调用 send_email。如果发送工具提示缺少 body_html，必须立刻补齐后重试。"
         )
         return prompt
 

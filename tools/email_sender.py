@@ -34,15 +34,18 @@ SEND_EMAIL_SCHEMA = {
                 "recipient": {
                     "type": "string",
                     "description": "收件人邮箱地址",
+                    "minLength": 3,
                 },
                 "subject": {
                     "type": "string",
                     "description": "邮件主题，例如「每日新闻摘要 - 2024年6月17日」",
+                    "minLength": 2,
                 },
                 "body_html": {
                     "type": "string",
-                    "description": "邮件的 HTML 正文内容。应包含完整的 HTML 结构（带内联样式），"
-                    "包括新闻分类标题、每条新闻的标题+摘要+来源链接+发布时间。",
+                    "description": "必填且不能为空。邮件的 HTML 正文内容。必须先生成完整 HTML 再调用本工具，"
+                    "包括今日概览、新闻分类标题、每条新闻的标题+摘要+来源链接+发布时间。",
+                    "minLength": 200,
                 },
             },
             "required": ["recipient", "subject", "body_html"],
